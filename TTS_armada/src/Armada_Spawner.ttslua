@@ -1,0 +1,318 @@
+DEF_BRACE = '79d121'
+DEF_CONTAIN = '68abfc'
+DEF_EVADE = 'c09d88'
+DEF_REDIRECT = '36f595'
+DEF_SCATTER = '895e91'
+DEF_SALVO = '5028b2'
+
+function update()
+    for _,card in ipairs(getAllObjects()) do
+        if card.tag == 'Card' then
+            local cmd = card.getDescription()
+            local oldName = card.getVar('oldName')
+            card.setVar('oldName',card.getName())
+            if cmd:starts "spawn" then
+                if oldName ~= card.getName() then
+                    card.setName(oldName)
+                end
+                local count = tonumber(cmd:match "spawn%s(.*)")
+                if count == nil then count = 1 end
+                printToAll("Spawn ship '"..card.getName().."'",{0,1,1})
+                spawnShip(card.getName(),card.getPosition(),count,card.getRotation()[2])
+                card.setDescription("")
+                --card.lock()
+            end
+        end
+    end
+end
+
+SmallShip = {
+    collider = "http://paste.ee/r/eDbf1",
+    convex = true,
+    type = 1,
+    material = 3,
+    maneuver = {},
+    defense_tokens = {},
+    shields = {1,1,1,1}
+}
+function SmallShip:new (o)
+    o = o or {}
+    setmetatable(o, SmallShip)
+    SmallShip.__index = SmallShip
+    return o
+end
+MediumShip = {
+    collider = "http://paste.ee/r/6LYTT",
+    convex = true,
+    type = 1,
+    material = 3,
+    maneuver = {},
+    defense_tokens = {},
+    shields = {1,1,1,1}
+}
+function MediumShip:new (o)
+    o = o or {}
+    setmetatable(o, MediumShip)
+    MediumShip.__index = MediumShip
+    return o
+end
+LargeShip = {
+    collider = "http://paste.ee/r/a7mfW",
+    convex = true,
+    type = 1,
+    material = 3,
+    maneuver = {},
+    defense_tokens = {},
+    shields = {1,1,1,1}
+}
+function LargeShip:new (o)
+    o = o or {}
+    setmetatable(o, LargeShip)
+    LargeShip.__index = LargeShip
+    return o
+end
+HugeShip = {
+    collider = "https://paste.ee/r/ClCL3",
+    convex = true,
+    type = 1,
+    material = 3,
+    maneuver = {},
+    defense_tokens = {},
+    shields = {1,1,1,1,1,1}
+}
+function HugeShip:new (o)
+    o = o or {}
+    setmetatable(o, HugeShip)
+    HugeShip.__index = HugeShip
+    return o
+end
+Squadron = {
+    collider = "http://paste.ee/r/nAMCQ",
+    convex = false,
+    type = 1,
+    material = 1,
+    defense_tokens = {}
+}
+function Squadron:new (o)
+    o = o or {}
+    setmetatable(o, Squadron)
+    Squadron.__index = Squadron
+    return o
+end
+
+SHIPS = {}
+function onObjectLeaveContainer(Container, object)
+    --Create a Button on the card for leaving a container
+    if SHIPS[object.getName()] != nil or string.starts(object.getDescription(),"Custom") then
+        object.createButton({label = "Spawn: "..object.getName(), click_function = 'Action_Spawn', rotation = {0, 0, 0},
+        position = {0, 0.3, -2}, width = (40 * string.len("Spawn: "..object.getName())), height = 100, font_size = 75, function_owner = self})
+        object.createButton({label = "Done", click_function = 'Action_DoneSpawn', rotation = {0, 0, 0},
+        position = {0, 0.3, -2.4}, width = 320, height = 100, font_size = 75, function_owner = self})
+        -- local data = SHIPS[object.getName()]
+        -- data[12] = object.getGUID()
+        -- data[13] = {}
+        -- object.setTable('Details', data)
+        if string.starts(object.getDescription(),"Custom") then
+            -- Custom|Ship|Large|mesh|diffuse|ruler|II|I,II|-,I,II
+            local model_data = string:split(object.getDescription(),'\n',nil,false)
+            local ship_data = {}
+            if model_data[2]=="Ship" then
+                local maneuver = {}
+                -- lolnope loadstring("maneuver = "..model_data[7])
+                table.insert(maneuver,string:split(model_data[7],",",nil,false))
+                if #model_data>7 then
+                    table.insert(maneuver,string:split(model_data[8],",",nil,false))
+                end
+                if #model_data>8 then
+                    table.insert(maneuver,string:split(model_data[9],",",nil,false))
+                end
+                if #model_data>9 then
+                    table.insert(maneuver,string:split(model_data[10],",",nil,false))
+                end
+                if model_data[3]=="Small" then
+                    ship_data = {
+                        mesh = model_data[4],
+                        diffuse = model_data[5],
+                        ruler = model_data[6],
+                        maneuver = maneuver,
+                        convex = true,
+                        type = 1,
+                        material = 3,
+                        collider = SmallShip.collider
+                    }
+                elseif model_data[3]=="Medium" then
+                    ship_data = {
+                        mesh = model_data[4],
+                        diffuse = model_data[5],
+                        ruler = model_data[6],
+                        maneuver = maneuver,
+                        convex = true,
+                        type = 1,
+                        material = 3,
+                        collider = MediumShip.collider
+                    }
+                elseif model_data[3]=="Large" then
+                    ship_data = {
+                        mesh = model_data[4],
+                        diffuse = model_data[5],
+                        ruler = model_data[6],
+                        maneuver = maneuver,
+                        convex = true,
+                        type = 1,
+                        material = 3,
+                        collider = LargeShip.collider
+                    }
+                end
+            elseif model_data[2]=="Squadron" then
+                -- Custom|Squadron|mesh|diffuse|health|move
+                ship_data = {
+                    mesh = model_data[3],
+                    diffuse = model_data[4],
+                    health =  model_data[5],
+                    move = model_data[6],
+                    collider = "http://paste.ee/r/nAMCQ",
+                    convex = false,
+                    type = 1,
+                    material = 1 }
+            end
+            object.setTable('Custom',ship_data)
+        end
+    end
+end
+function Action_Spawn(card)
+    if card.getTable('Custom') != nil then
+        printToAll("Spawning Custom Ship",{0,1,1})
+        spawnDefinition(card.getTable('Custom'),card.getName(),card.getPosition(),1,card.getRotation()[2])
+    else
+        spawnShip(card.getName(),card.getPosition(),1,card.getRotation()[2])
+    end
+end
+function Action_DoneSpawn(card)
+    card.clearButtons()
+end
+function onload()
+#include defs/rebel/ships
+#include defs/empire/ships
+    local ship = nil
+
+#include defs/rebel/squadrons
+#include defs/empire/squadrons
+    for _,ship in ipairs(getAllObjects()) do
+        if ship.tag == 'Figurine' then
+            for key,ship_def in pairs(SHIPS) do
+                --printToAll("Checking Ship Def: "..key,{0,1,1})
+                if ship_def.mesh == ship.getCustomObject().mesh then
+                    ship.setVar("rulerMesh",ship_def.ruler)
+                    --printToAll("set ruler for: "..ship_def.ruler,{0,1,1})
+                end
+            end
+        end
+    end
+end
+function spawnShip(name,pos,count,rotation)
+    local ship_def = SHIPS[name]
+    spawnDefinition(ship_def,name,pos,count,rotation)
+end
+token_offsets = {{-0.86,0,-3.64},{0.86,0,-3.64},{-0.86,0,-4.94},{0.86,0,-4.94},{-0.86,0,-6.24},{0.86,0,-6.24}}
+function spawnDefinition(ship_def, name, pos,count,y_rotation)
+    --local ship_def = SHIPS[name]
+    if ship_def~=nil then
+    --for _,ship_def in ipairs(SHIPS) do
+    --    if ship_def.name == name then
+        rotation_offset = 180
+        if ship_def.health~=nil and ship_def.move~=nil then
+            name = "("..ship_def.health.."/"..ship_def.health..") ["..ship_def.move.."] "..name
+            rotation_offset = 0
+        end
+        for i=1, count, 1 do
+            local obj_parameters = {}
+            obj_parameters.type = 'Custom_Model'
+            obj_parameters.position = {pos[1],4+i,pos[3]}
+            obj_parameters.rotation = {0,y_rotation-rotation_offset,0 }
+            local ship = spawnObject(obj_parameters)
+            local custom = {}
+            custom.mesh = ship_def.mesh
+            custom.collider = ship_def.collider
+            custom.diffuse = ship_def.diffuse
+            custom.convex = ship_def.convex
+            custom.type = ship_def.type
+            custom.material = ship_def.material
+            ship.setCustomObject(custom)
+
+            ship.setName(name)
+            ship.setVar("rulerMesh",ship_def.ruler)
+            ship.setTable("maneuver",ship_def.maneuver)
+            ship.setTable("shields",ship_def.shields)
+        end
+        if ship_def.defense_tokens~=nil then
+            for i,source_guid in ipairs(ship_def.defense_tokens) do
+                source = getObjectFromGUID(source_guid)
+                offset = token_offsets[i]
+                local obj_parameters = {}
+                obj_parameters.position = vector.sub(pos,vector.rotate(offset,y_rotation))
+                obj_parameters.rotation = {0,y_rotation+90,0}
+                source.takeObject(obj_parameters)
+            end
+        end
+    --    end
+    --end
+    end
+end
+function math.round(x)
+    return x>=0 and math.floor(x+0.5) or math.ceil(x-0.5)
+end
+vector={}
+function vector.add(pos, offset)
+    return {pos[1] + offset[1],pos[2] + offset[2],pos[3] + offset[3]}
+end
+function vector.sub(pos, offset)
+    return {pos[1] - offset[1],pos[2] - offset[2],pos[3] - offset[3]}
+end
+function vector.rotate(direction, yRotation)
+
+    local rotval = math.round(yRotation)
+    local radrotval = math.rad(rotval)
+    local xDistance = math.cos(radrotval) * direction[1] + math.sin(radrotval) * direction[3]
+    local zDistance = math.sin(radrotval) * direction[1] * -1 + math.cos(radrotval) * direction[3]
+    return {xDistance, direction[2], zDistance}
+end
+function string.starts(String,Start)
+    return string.sub(String,1,string.len(Start))==Start
+end
+function string:split(this,sSeparator, nMax, bRegexp)
+    assert(sSeparator ~= '')
+    assert(nMax == nil or nMax >= 1)
+
+    local aRecord = {}
+
+    if this:len() > 0 then
+        local bPlain = not bRegexp
+        nMax = nMax or -1
+
+        local nField, nStart = 1, 1
+        local nFirst,nLast = this:find(sSeparator, nStart, bPlain)
+        while nFirst and nMax ~= 0 do
+            aRecord[nField] = this:sub(nStart, nFirst-1)
+            nField = nField+1
+            nStart = nLast+1
+            nFirst,nLast = this:find(sSeparator, nStart, bPlain)
+            nMax = nMax-1
+        end
+        aRecord[nField] = this:sub(nStart)
+    end
+
+    return aRecord
+end
+function table.copy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in pairs(orig) do
+            copy[orig_key] = orig_value
+        end
+    else -- number, string, boolean, etc
+    copy = orig
+    end
+    return copy
+end
